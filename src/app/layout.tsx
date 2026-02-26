@@ -11,6 +11,7 @@ import {
 } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { Button } from "@/components/ui/button";
+import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,21 +46,23 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased`}
         >
-          <header>
-            <SignedOut>
-              <SignInButton>
-                <Button>Sign In</Button>
-              </SignInButton>
-              <SignUpButton>
-                <Button>Sign Up</Button>
-              </SignUpButton>
-            </SignedOut>
+          <ConvexClientProvider>
+            <header>
+              <SignedOut>
+                <SignInButton>
+                  <Button>Sign In</Button>
+                </SignInButton>
+                <SignUpButton>
+                  <Button>Sign Up</Button>
+                </SignUpButton>
+              </SignedOut>
 
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-          </header>
-          {children}
+              <SignedIn>
+                <UserButton />
+              </SignedIn>
+            </header>
+            {children}
+          </ConvexClientProvider>
         </body>
       </html>
     </ClerkProvider>
