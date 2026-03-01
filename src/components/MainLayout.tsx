@@ -17,7 +17,7 @@ export default function MainLayout({
   );
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col">
       {!shouldHideNavbar && Navbar}
       <main
         className={`${!shouldHideNavbar ? "pt-16" : ""} flex-1 flex flex-col`}
