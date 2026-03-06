@@ -3,6 +3,8 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { CodeXml, Eye } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
+import { Allotment } from "allotment";
+import FileExplorerView from "./FileExplorer/FileExplorerView";
 
 const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
   return (
@@ -40,7 +42,19 @@ const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
 
         {/* Tab Content */}
         <TabsContent value="code">
-          <p>Code Editor</p>
+          <Allotment defaultSizes={[1, 3]}>
+            <Allotment.Pane
+              minSize={180}
+              maxSize={600}
+              snap
+              preferredSize={"25%"}
+            >
+              <FileExplorerView projectId={projectId} />
+            </Allotment.Pane>
+            <Allotment.Pane>
+              <div>Editor view</div>
+            </Allotment.Pane>
+          </Allotment>
         </TabsContent>
         <TabsContent value="preview">
           <p>Preview</p>
