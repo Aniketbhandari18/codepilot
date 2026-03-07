@@ -6,7 +6,7 @@ import { CopyMinus, FilePlusCorner } from "lucide-react";
 import { TbFolderPlus } from "react-icons/tb";
 import { useState } from "react";
 import FileTree from "./FileTree";
-import { CreatingFile, RenamingFile } from "./types";
+import { CreatingFile, RenamingFile } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import FileExplorerSkeleton from "./FileExplorerSkeleton";
 
