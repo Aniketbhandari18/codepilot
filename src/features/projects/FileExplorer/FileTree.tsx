@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction } from "react";
 import { Doc, Id } from "../../../../convex/_generated/dataModel";
 import FileTreeItem from "./FileTreeItem";
-import { CreatingFile, RenamingFile } from "./types";
+import { CreatingFile, RenamingFile } from "@/types";
 import FileInput from "./FileInput";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
