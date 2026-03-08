@@ -5,8 +5,82 @@ import { FaGithub } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Allotment } from "allotment";
 import FileExplorerView from "./FileExplorer/FileExplorerView";
+import { useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { EditorTab } from "@/types";
+import CodeEditorContainer from "./CodeEditor/CodeEditorContainer";
 
 const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
+  // State for opened Tabs in code editors
+  const [openedTabs, setOpenedTabs] = useState<EditorTab[]>([]);
+  // State for active Tab in code editor
+  const [activeTabId, setActiveTabId] = useState<Id<"files"> | null>(null);
+
+  const openTab = (fileId: Id<"files">, pinned: boolean = false) => {
+    const existing = openedTabs.find((t) => t.fileId === fileId);
+
+    if (existing) {
+      setActiveTabId(fileId);
+
+      if (pinned) {
+        setOpenedTabs((prev) =>
+          prev.map((t) => (t.fileId === fileId ? { ...t, pinned: true } : t)),
+        );
+      }
+
+      return;
+    }
+
+    // If there is an unpinned tab replace it with the new one
+    const unpinnedTab = openedTabs.find((t) => t.pinned === false);
+    if (unpinnedTab) {
+      setOpenedTabs((prev) =>
+        prev.map((t) =>
+          t.pinned === false ? { fileId: fileId, pinned: pinned } : t,
+        ),
+      );
+
+      setActiveTabId(fileId);
+      return;
+    }
+
+    // Else add new Tab
+    setOpenedTabs((prev) => [...prev, { fileId: fileId, pinned: pinned }]);
+    setActiveTabId(fileId);
+  };
+
+  const closeTab = (fileId: Id<"files">) => {
+    const tabIdx = openedTabs.findIndex((t) => t.fileId === fileId);
+    const len = openedTabs.length;
+    const nearestIdx = tabIdx === len - 1 ? tabIdx - 1 : tabIdx + 1;
+
+    // Remove this fileId from openedTabs
+    setOpenedTabs((prev) => prev.filter((t) => t.fileId !== fileId));
+
+    // if this file is active, replace it with the nearest tab
+    if (activeTabId === fileId) {
+      // Set null for 0 active tabs
+      if (len === 1) {
+        setActiveTabId(null);
+        return;
+      }
+
+      setActiveTabId(openedTabs[nearestIdx].fileId);
+    }
+  };
+
+  // Might not need this
+  const pinTab = (fileId: Id<"files">) => {
+    setOpenedTabs((prev) =>
+      prev.map((t) => (t.fileId === fileId ? { ...t, pinned: true } : t)),
+    );
+  };
+
+  const files = useQuery(api.files.getFiles, {
+    projectId: projectId,
+  });
+
   return (
     <div className="h-full">
       <Tabs className="gap-0 h-full" defaultValue="code">
@@ -49,10 +123,21 @@ const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
               snap
               preferredSize={"25%"}
             >
-              <FileExplorerView projectId={projectId} />
+              <FileExplorerView
+                projectId={projectId}
+                files={files}
+                onOpenTab={openTab}
+              />
             </Allotment.Pane>
             <Allotment.Pane>
-              <div>Editor view</div>
+              <CodeEditorContainer
+                files={files}
+                tabs={openedTabs}
+                activeTabId={activeTabId}
+                onSetActiveTab={setActiveTabId}
+                onPinTab={pinTab}
+                onCloseTab={closeTab}
+              />
             </Allotment.Pane>
           </Allotment>
         </TabsContent>
