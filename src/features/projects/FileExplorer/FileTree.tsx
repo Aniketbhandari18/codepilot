@@ -29,6 +29,7 @@ type Props = {
   renamingFile: RenamingFile;
   setRenamingFile: Dispatch<SetStateAction<RenamingFile>>;
   deleteFile: ReturnType<typeof useMutation<typeof api.files.deleteFile>>;
+  onOpenTab: (fileId: Id<"files">, pinned?: boolean) => void;
 };
 
 const FileTree = ({
@@ -44,6 +45,7 @@ const FileTree = ({
   renamingFile,
   setRenamingFile,
   deleteFile,
+  onOpenTab,
 }: Props) => {
   const isRoot = file === undefined;
   const isOpen = isRoot || openFolders.has(file._id);
@@ -165,6 +167,7 @@ const FileTree = ({
         file={file}
         onRename={startRenaming}
         onDelete={handleDelete}
+        onOpenTab={onOpenTab}
       >
         <div className="flex items-center gap-1.5 ml-3">
           <FileIcon fileName={file.name} className="w-7 h-5 shrink-0" />
@@ -229,6 +232,7 @@ const FileTree = ({
               renamingFile={renamingFile}
               setRenamingFile={setRenamingFile}
               deleteFile={deleteFile}
+              onOpenTab={onOpenTab}
             />
           ))}
 
@@ -258,6 +262,7 @@ const FileTree = ({
               renamingFile={renamingFile}
               setRenamingFile={setRenamingFile}
               deleteFile={deleteFile}
+              onOpenTab={onOpenTab}
             />
           ))}
         </div>

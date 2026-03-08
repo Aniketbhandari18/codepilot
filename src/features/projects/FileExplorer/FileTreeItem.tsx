@@ -13,6 +13,8 @@ type Props = {
   onCreate?: (type: "file" | "folder", parentId: Id<"files">) => void;
   onRename: (type: "file" | "folder", fileId: Id<"files">) => void;
   onDelete: (fileId: Id<"files">) => void;
+  // Only passed when file.type === "file" — folders don't open tabs
+  onOpenTab?: (fileId: Id<"files">, pinned?: boolean) => void;
 };
 
 const FileTreeItem = ({
@@ -21,11 +23,16 @@ const FileTreeItem = ({
   onCreate,
   onRename,
   onDelete,
+  onOpenTab,
 }: Props) => {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <button className="w-full px-1 text-left rounded-sm cursor-pointer hover:bg-cyan-950">
+        <button
+          className="w-full px-1 text-left rounded-sm cursor-pointer hover:bg-cyan-950"
+          onClick={() => onOpenTab?.(file._id)}
+          onDoubleClick={() => onOpenTab?.(file._id, true)}
+        >
           {children}
         </button>
       </ContextMenuTrigger>

@@ -9,3 +9,8 @@ export type RenamingFile = {
   type: "folder" | "file";
   fileId: Id<"files">;
 } | null;
+
+export type EditorTab = {
+  fileId: Id<"files">;
+  pinned: boolean;
+};

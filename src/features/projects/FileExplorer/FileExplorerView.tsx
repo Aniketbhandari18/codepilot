@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Doc, Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,13 @@ import FileExplorerSkeleton from "./FileExplorerSkeleton";
 
 const ROOT_KEY = "__ROOT__";
 
-const FileExplorerView = ({ projectId }: { projectId: Id<"projects"> }) => {
+type Props = {
+  projectId: Id<"projects">;
+  files: Doc<"files">[] | undefined;
+  onOpenTab: (fileId: Id<"files">, pinned?: boolean) => void;
+};
+
+const FileExplorerView = ({ projectId, files, onOpenTab }: Props) => {
   const [openFolders, setOpenFolders] = useState<Set<Id<"files">>>(new Set());
   const [creatingFile, setCreatingFile] = useState<CreatingFile>(null);
   const [renamingFile, setRenamingFile] = useState<RenamingFile>(null);
@@ -94,10 +100,6 @@ const FileExplorerView = ({ projectId }: { projectId: Id<"projects"> }) => {
       );
     },
   );
-
-  const files = useQuery(api.files.getFiles, {
-    projectId: projectId,
-  });
 
   type ChildrenMap = Map<
     Id<"files"> | typeof ROOT_KEY,
@@ -212,6 +214,7 @@ const FileExplorerView = ({ projectId }: { projectId: Id<"projects"> }) => {
             renamingFile={renamingFile}
             setRenamingFile={setRenamingFile}
             deleteFile={deleteFile}
+            onOpenTab={onOpenTab}
           />
         </ScrollArea>
       )}
