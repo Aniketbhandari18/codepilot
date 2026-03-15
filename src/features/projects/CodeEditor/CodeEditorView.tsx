@@ -2,6 +2,7 @@ import { Id } from "../../../../convex/_generated/dataModel";
 import Editor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { emmetHTML, emmetCSS, emmetJSX } from "emmet-monaco-es";
+import nightOwlTheme from "./theme.json";
 
 type Props = {
   fileId: Id<"files">;
@@ -24,11 +25,6 @@ const CodeEditorView = ({
     emmetHTML(monaco, ["html", "php"]);
     emmetCSS(monaco, ["css", "scss", "less"]);
     emmetJSX(monaco, ["javascript", "typescript", "mdx"]);
-
-    const theme = await fetch(THEME_URL).then((r) => r.json());
-
-    monaco.editor.defineTheme("night-owl", theme);
-    monaco.editor.setTheme("night-owl");
 
     // configure typescript compiler options for better intellisense
     const ext = fileName.split(".").pop()?.toLowerCase();
@@ -74,6 +70,13 @@ const CodeEditorView = ({
     editor: Monaco.editor.IStandaloneCodeEditor,
     monaco: typeof Monaco,
   ) => {
+    // Set theme
+    monaco.editor.defineTheme(
+      "night-owl",
+      nightOwlTheme as Monaco.editor.IStandaloneThemeData,
+    );
+    monaco.editor.setTheme("night-owl");
+
     // Format on save
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       editor.getAction("editor.action.formatDocument")?.run();
