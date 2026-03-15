@@ -1,25 +1,54 @@
-import { Id } from "../../../../convex/_generated/dataModel";
+import { Doc } from "../../../../convex/_generated/dataModel";
 import Editor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { emmetHTML, emmetCSS, emmetJSX } from "emmet-monaco-es";
 import nightOwlTheme from "./theme.json";
+import { useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import { useEffect, useRef } from "react";
 
 type Props = {
-  fileId: Id<"files">;
-  fileName: string;
-  initialContent: string;
-  onChange: (value: string) => void;
+  file: Doc<"files">;
 };
 
-const THEME_URL =
-  "https://raw.githubusercontent.com/brijeshb42/monaco-themes/master/themes/Night Owl.json";
+const DEBOUNCE_DELAY = 1000; // 1 second;
 
-const CodeEditorView = ({
-  fileId,
-  fileName,
-  initialContent = "",
-  onChange,
-}: Props) => {
+const CodeEditorView = ({ file }: Props) => {
+  const updateContent = useMutation(api.files.updateContent);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingUpdateRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      if (pendingUpdateRef.current) {
+        updateContent({
+          fileId: file._id,
+          content: pendingUpdateRef.current,
+        });
+        pendingUpdateRef.current = null;
+      }
+    };
+  }, [file._id]);
+
+  const onChange = (value: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    pendingUpdateRef.current = value;
+
+    timeoutRef.current = setTimeout(() => {
+      updateContent({
+        fileId: file._id,
+        content: value,
+      });
+
+      pendingUpdateRef.current = null;
+    }, DEBOUNCE_DELAY);
+  };
+
+  if (file.type === "folder") return null;
+
   // Load theme and configure monaco editor before it mounts
   const handleBeforeMount = async (monaco: typeof Monaco) => {
     emmetHTML(monaco, ["html", "php"]);
@@ -27,7 +56,7 @@ const CodeEditorView = ({
     emmetJSX(monaco, ["javascript", "typescript", "mdx"]);
 
     // configure typescript compiler options for better intellisense
-    const ext = fileName.split(".").pop()?.toLowerCase();
+    const ext = file.name.split(".").pop()?.toLowerCase();
     const isJsOrTsFile =
       ext === "js" || ext === "ts" || ext === "jsx" || ext === "tsx";
 
@@ -86,8 +115,8 @@ const CodeEditorView = ({
   return (
     <div className="h-full">
       <Editor
-        path={`${fileId}/${fileName}`} // used for multi model support + automatically infers language
-        defaultValue={initialContent}
+        path={`${file._id}/${file.name}`} // used for multi model support + automatically infers language
+        defaultValue={file.content}
         beforeMount={handleBeforeMount}
         onMount={handleOnMount}
         onChange={(value) => onChange(value || "")}

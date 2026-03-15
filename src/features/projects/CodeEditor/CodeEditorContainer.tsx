@@ -2,9 +2,6 @@ import { Doc, Id } from "../../../../convex/_generated/dataModel";
 import { EditorTab } from "@/types";
 import CodeEditorTabs from "./CodeEditorTabs";
 import CodeEditorView from "./CodeEditorView";
-import { useMutation } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import { useEffect, useRef } from "react";
 import { AlertTriangleIcon } from "lucide-react";
 
 type Props = {
@@ -16,8 +13,6 @@ type Props = {
   onCloseTab: (fileId: Id<"files">) => void;
 };
 
-const DEBOUNCE_DELAY = 1000; // 1 second;
-
 const CodeEditorContainer = ({
   files,
   tabs,
@@ -28,32 +23,8 @@ const CodeEditorContainer = ({
 }: Props) => {
   const file = files?.find((f) => f._id === activeTabId);
 
-  const updateContent = useMutation(api.files.updateContent);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [activeTabId]);
-
-  const onChange = (value: string) => {
-    if (!file) return;
-
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-    timeoutRef.current = setTimeout(() => {
-      updateContent({
-        fileId: file._id,
-        content: value,
-      });
-    }, DEBOUNCE_DELAY);
-  };
-
-  if (!file || file.type === "folder") return null;
-
-  const isActiveFileText = activeTabId && !file.storageId;
-  const isActiveFileBinary = activeTabId && file.storageId;
+  const isActiveFileText = file && !file.storageId;
+  const isActiveFileBinary = file && file.storageId;
 
   return (
     <div className="h-full flex flex-col">
@@ -67,14 +38,7 @@ const CodeEditorContainer = ({
       />
 
       <div className="flex-1 min-h-0">
-        {isActiveFileText && (
-          <CodeEditorView
-            fileId={file._id}
-            fileName={file.name}
-            initialContent={file.content || ""}
-            onChange={onChange}
-          />
-        )}
+        {isActiveFileText && <CodeEditorView file={file} />}
 
         {isActiveFileBinary && (
           <div className="size-full flex items-center justify-center pb-20">
