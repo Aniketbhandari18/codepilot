@@ -3,6 +3,8 @@ import Editor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { emmetHTML, emmetCSS, emmetJSX } from "emmet-monaco-es";
 import nightOwlTheme from "./theme.json";
+import * as prettier from "prettier";
+import { prettierPlugins } from "./prettierPlugins";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useEffect, useRef } from "react";
@@ -105,6 +107,22 @@ const CodeEditorView = ({ file }: Props) => {
       nightOwlTheme as Monaco.editor.IStandaloneThemeData,
     );
     monaco.editor.setTheme("night-owl");
+
+    // Register Prettier as the document formatter
+    monaco.languages.registerDocumentFormattingEditProvider("*", {
+      async provideDocumentFormattingEdits(model) {
+        try {
+          const formatted = await prettier.format(model.getValue(), {
+            filepath: file.name,
+            plugins: prettierPlugins,
+          });
+
+          return [{ range: model.getFullModelRange(), text: formatted }];
+        } catch (error) {
+          return [];
+        }
+      },
+    });
 
     // Format on save
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
