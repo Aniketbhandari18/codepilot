@@ -183,17 +183,25 @@ export async function POST(req: NextRequest) {
         nextLines,
       ),
       temperature: 0,
+      abortSignal: req.signal,
     });
 
     return NextResponse.json({
       suggestion: output.suggestion,
     });
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
+    // Handle abort errors separately to avoid logging them as actual errors
+    if (
+      error instanceof Error &&
+      (error.name === "AbortError" || error.name === "ResponseAborted")
+    ) {
       return NextResponse.json({ suggestion: "" });
     }
 
     console.error(error);
-    return NextResponse.json({ suggestion: "" });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
