@@ -8,6 +8,7 @@ import { prettierPlugins } from "./prettierPlugins";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useEffect, useRef } from "react";
+import axios from "axios";
 
 type Props = {
   file: Doc<"files">;
@@ -19,6 +20,7 @@ const CodeEditorView = ({ file }: Props) => {
   const updateContent = useMutation(api.files.updateContent);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingUpdateRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     return () => {
@@ -95,6 +97,87 @@ const CodeEditorView = ({ file }: Props) => {
         "file:///node_modules/@types/react/jsx-runtime.d.ts",
       );
     }
+
+    // Inline suggestions
+    monaco.languages.registerInlineCompletionsProvider("*", {
+      provideInlineCompletions: async (model, position, context, token) => {
+        return new Promise((resolve) => {
+          const timeout = setTimeout(async () => {
+            abortControllerRef.current?.abort();
+            abortControllerRef.current = new AbortController();
+
+            const previousLines = model.getValueInRange({
+              startLineNumber: 1,
+              startColumn: 1,
+              endLineNumber: position.lineNumber - 1,
+              endColumn: model.getLineMaxColumn(position.lineNumber - 1),
+            });
+
+            const nextLines = model.getValueInRange({
+              startLineNumber: position.lineNumber + 1,
+              startColumn: 1,
+              endLineNumber: model.getLineCount(),
+              endColumn: model.getLineMaxColumn(model.getLineCount()),
+            });
+
+            const textBeforeCursor = model.getValueInRange({
+              startLineNumber: position.lineNumber,
+              startColumn: 1,
+              endLineNumber: position.lineNumber,
+              endColumn: position.column,
+            });
+            const textAfterCursor = model.getValueInRange({
+              startLineNumber: position.lineNumber,
+              startColumn: position.column,
+              endLineNumber: position.lineNumber,
+              endColumn: model.getLineMaxColumn(position.lineNumber),
+            });
+
+            try {
+              const { data } = await axios.post(
+                "/api/ai/inline-completion",
+                {
+                  fileName: file.name,
+                  previousLines,
+                  textBeforeCursor,
+                  textAfterCursor,
+                  nextLines,
+                },
+                {
+                  signal: abortControllerRef.current.signal,
+                },
+              );
+              console.log(data);
+              const suggestion = data.suggestion as string;
+
+              resolve({
+                items: [
+                  {
+                    insertText: suggestion,
+                    range: {
+                      startLineNumber: position.lineNumber,
+                      startColumn: position.column,
+                      endLineNumber: position.lineNumber,
+                      endColumn: position.column,
+                    },
+                  },
+                ],
+              });
+            } catch (error) {
+              resolve({ items: [] });
+            }
+          }, 500);
+
+          token.onCancellationRequested(() => {
+            console.log("cancelled");
+            abortControllerRef.current?.abort();
+            clearTimeout(timeout);
+            resolve({ items: [] });
+          });
+        });
+      },
+      disposeInlineCompletions() {},
+    });
   };
 
   const handleOnMount = (
