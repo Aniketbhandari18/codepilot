@@ -42,4 +42,23 @@ export default defineSchema({
       "parentId",
       "normalizedName",
     ]),
+
+  conversations: defineTable({
+    projectId: v.id("projects"),
+    title: v.string(),
+    updatedAt: v.number(),
+  }).index("by_project_updatedAt", ["projectId", "updatedAt"]),
+
+  messages: defineTable({
+    projectId: v.id("projects"),
+    conversationId: v.id("conversations"),
+    role: v.union(v.literal("assistant"), v.literal("user")),
+    content: v.string(),
+    status: v.union(
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("cancelled"),
+    ),
+    updatedAt: v.number(),
+  }).index("by_conversation", ["conversationId"]),
 });

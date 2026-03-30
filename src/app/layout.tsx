@@ -6,6 +6,7 @@ import { dark } from "@clerk/themes";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import Navbar from "@/components/Navbar";
 import MainLayout from "@/components/MainLayout";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -45,9 +46,11 @@ export default function RootLayout({
         <body
           className={`${spaceGrotesk.variable} ${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased`}
         >
-          <ConvexClientProvider>
-            <MainLayout Navbar={<Navbar />}>{children}</MainLayout>
-          </ConvexClientProvider>
+          <TooltipProvider>
+            <ConvexClientProvider>
+              <MainLayout Navbar={<Navbar />}>{children}</MainLayout>
+            </ConvexClientProvider>
+          </TooltipProvider>
         </body>
       </html>
     </ClerkProvider>
