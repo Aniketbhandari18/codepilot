@@ -6,6 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import { notFound } from "next/navigation";
 import { Allotment } from "allotment";
 import ProjectView from "./ProjectView";
+import ConversationSidebar from "./Conversation/ConversationSidebar";
 
 import "allotment/dist/style.css";
 
@@ -28,7 +29,7 @@ const ProjectContainer = ({ projectId }: { projectId: Id<"projects"> }) => {
           maxSize={MAX_SIDEBAR_WIDTH}
           preferredSize="33.33%"
         >
-          <div>Conversation Sidebar</div>
+          <ConversationSidebar projectId={projectId} />
         </Allotment.Pane>
         <Allotment.Pane>
           <ProjectView projectId={projectId} />

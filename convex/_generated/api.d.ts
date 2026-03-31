@@ -9,7 +9,9 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as conversations from "../conversations.js";
 import type * as files from "../files.js";
+import type * as messages from "../messages.js";
 import type * as projects from "../projects.js";
 
 import type {
@@ -20,7 +22,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  conversations: typeof conversations;
   files: typeof files;
+  messages: typeof messages;
   projects: typeof projects;
 }>;
 
