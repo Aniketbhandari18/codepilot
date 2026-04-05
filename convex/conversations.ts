@@ -54,7 +54,7 @@ export const getAll = query({
   },
 });
 
-export const update = mutation({
+export const rename = mutation({
   args: {
     conversationId: v.id("conversations"),
     title: v.string(),
@@ -83,5 +83,39 @@ export const update = mutation({
     await ctx.db.patch("conversations", args.conversationId, {
       title: args.title.trim(),
     });
+  },
+});
+
+export const remove = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const conversation = await ctx.db.get("conversations", args.conversationId);
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    const project = await ctx.db.get("projects", conversation.projectId);
+
+    if (!project || project.ownerId !== identity.subject) {
+      throw new Error("Project not found");
+    }
+
+    await ctx.db.delete("conversations", args.conversationId);
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversationId", args.conversationId),
+      )
+      .collect();
+
+    await Promise.all(
+      messages.map((message) => ctx.db.delete("messages", message._id))
+    );
   },
 });

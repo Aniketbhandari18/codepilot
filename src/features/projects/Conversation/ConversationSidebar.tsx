@@ -20,13 +20,16 @@ import {
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
 import { useMutation, useQuery } from "convex/react";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { DefaultChatTransport, UIMessage } from "ai";
 import { Loader as AiLoader } from "@/components/ai-elements/loader";
 import Loader from "@/components/Loader";
+import { Button } from "@/components/ui/button";
+import ConversationTitle from "./ConversationTitle";
+import PastConversationsDialog from "./PastConversationsDialog";
 
 type Props = {
   projectId: Id<"projects">;
@@ -58,8 +61,13 @@ const ConversationSidebar = ({ projectId }: Props) => {
     ],
   })) as UIMessage[] | undefined;
 
+  const activeConversation = conversations?.find(
+    (c) => c._id === activeConversationId,
+  );
+
   const loadingMessages = dbMessages === undefined;
 
+  const createConversation = useMutation(api.conversations.create);
   const createMessage = useMutation(api.messages.create);
 
   const { messages, sendMessage, status, setMessages, stop } = useChat({
@@ -97,6 +105,14 @@ const ConversationSidebar = ({ projectId }: Props) => {
     }
   }, [dbMessages, setMessages]);
 
+  const handleCreateConversation = async () => {
+    const id = await createConversation({
+      projectId: projectId,
+    });
+
+    setActiveConversationId(id);
+  };
+
   const handleSubmit = async (message: PromptInputMessage) => {
     if (!activeConversationId) return;
 
@@ -115,7 +131,30 @@ const ConversationSidebar = ({ projectId }: Props) => {
   };
 
   return (
-    <div className="p-2 pr-1 relative size-full rounded-lg border h-full flex flex-col">
+    <div className="p-2 pt-1 pr-1 relative size-full rounded-lg border h-full flex flex-col">
+      <div className="flex justify-between items-center mb-1">
+        <ConversationTitle
+          projectId={projectId}
+          conversation={activeConversation}
+        />
+        <div className="space-x-1 flex">
+          <PastConversationsDialog
+            conversations={conversations}
+            onSelect={setActiveConversationId}
+            activeConversationId={activeConversationId}
+            setActiveConversationId={setActiveConversationId}
+          />
+          <Button
+            className="p-1! h-7"
+            variant="outline"
+            size="sm"
+            onClick={handleCreateConversation}
+          >
+            <Plus className="h-4.25! w-5!" />
+          </Button>
+        </div>
+      </div>
+
       <div className="flex-1 min-h-0 flex flex-col">
         {loadingMessages ? (
           <div className="flex flex-1 justify-center items-center">
@@ -123,37 +162,38 @@ const ConversationSidebar = ({ projectId }: Props) => {
           </div>
         ) : (
           <Conversation>
-            <ConversationContent className="p-0 gap-6 pr-1">
-              {messages &&
-                (messages.length === 0 ? (
-                  <ConversationEmptyState
-                    className="h-full"
-                    icon={<MessageSquare className="size-12" />}
-                    title="Start a conversation"
-                    description="Type a message below to begin chatting"
-                  />
-                ) : (
-                  messages.map((message) => (
-                    <Message from={message.role} key={message.id}>
-                      <MessageContent
-                        className={`${message.role === "user" ? "bg-blue-500! text-white!" : "bg-white/20! text-zinc-100!"} py-2`}
-                      >
-                        {message.parts.map((part, i) => {
-                          switch (part.type) {
-                            case "text":
-                              return (
-                                <MessageResponse key={`${message.id}-${i}`}>
-                                  {part.text}
-                                </MessageResponse>
-                              );
-                            default:
-                              return null;
-                          }
-                        })}
-                      </MessageContent>
-                    </Message>
-                  ))
-                ))}
+            <ConversationContent
+              className={`p-0 gap-6 pr-1 ${messages.length === 0 ? "h-full" : ""}`}
+            >
+              {messages.length === 0 ? (
+                <ConversationEmptyState
+                  className="h-full"
+                  icon={<MessageSquare className="size-12" />}
+                  title="Start a conversation"
+                  description="Type a message below to begin chatting"
+                />
+              ) : (
+                messages.map((message) => (
+                  <Message from={message.role} key={message.id}>
+                    <MessageContent
+                      className={`${message.role === "user" ? "bg-blue-500! text-white!" : "bg-white/20! text-zinc-100!"} py-2`}
+                    >
+                      {message.parts.map((part, i) => {
+                        switch (part.type) {
+                          case "text":
+                            return (
+                              <MessageResponse key={`${message.id}-${i}`}>
+                                {part.text}
+                              </MessageResponse>
+                            );
+                          default:
+                            return null;
+                        }
+                      })}
+                    </MessageContent>
+                  </Message>
+                ))
+              )}
               {status === "submitted" && (
                 <div>
                   <AiLoader />
