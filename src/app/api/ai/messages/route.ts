@@ -50,6 +50,13 @@ export async function POST(req: NextRequest) {
     { token: token },
   );
 
+  if (message.role !== "assistant" || message.status !== "processing") {
+    return NextResponse.json(
+      { error: "messageId must reference a processing assistant message" },
+      { status: 400 },
+    );
+  }
+
   // Remove all processingMessages first
   // Ideally processingMessages should be of length 1 (excluding current assistant message)
   const processingMessages = await fetchQuery(
