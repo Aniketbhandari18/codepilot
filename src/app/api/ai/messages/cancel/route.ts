@@ -1,22 +1,20 @@
-import { inngest } from "@/inngest/client";
 import { auth } from "@clerk/nextjs/server";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { NextRequest, NextResponse } from "next/server";
-import { api } from "../../../../../convex/_generated/api";
 import z from "zod";
-import { Id } from "../../../../../convex/_generated/dataModel";
+import { api } from "../../../../../../convex/_generated/api";
+import { Id } from "../../../../../../convex/_generated/dataModel";
+import { inngest } from "@/inngest/client";
 
 const reqBodySchema = z.object({
-  assistantMessageId: z.string(),
+  projectId: z.string(),
 });
 
 export async function POST(req: NextRequest) {
   const { userId, getToken } = await auth();
 
   if (!userId) {
-    return NextResponse.json("Unauthroized", {
-      status: 401,
-    });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const token = await getToken({ template: "convex" });
@@ -31,6 +29,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   const parsed = reqBodySchema.safeParse(body);
+
   if (!parsed.success) {
     console.log(parsed.error.issues);
 
@@ -40,30 +39,41 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { assistantMessageId } = parsed.data;
+  const { projectId } = parsed.data;
 
-  const message = await fetchQuery(
-    api.messages.getById,
+  const project = await fetchQuery(
+    api.projects.getById,
     {
-      messageId: assistantMessageId as Id<"messages">,
+      projectId: projectId as Id<"projects">,
     },
     { token: token },
   );
 
-  // Remove all processingMessages first
-  // Ideally processingMessages should be of length 1 (excluding current assistant message)
+  if (!project || project.ownerId !== userId) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  // Ideally processingMessages should be of length 1
   const processingMessages = await fetchQuery(
     api.messages.getProcessingMessages,
     {
-      projectId: message.projectId,
+      projectId: projectId as Id<"projects">,
     },
     { token: token },
   );
 
-  // Cancel all processingMessages except current assistant message (ideally 1)
+  // Cancel all processingMessages(ideally 1)
   await Promise.all(
     processingMessages.map(async (msg) => {
-      if (msg._id === assistantMessageId) return;
+      await fetchMutation(
+        api.messages.update,
+        {
+          messageId: msg._id,
+          status: "cancelled",
+          content: "Request cancelled",
+        },
+        { token: token },
+      );
 
       await inngest.send({
         name: "message/cancel",
@@ -72,25 +82,10 @@ export async function POST(req: NextRequest) {
           token: token,
         },
       });
-
-      await fetchMutation(
-        api.messages.update,
-        {
-          messageId: msg._id,
-          status: "cancelled",
-        },
-        { token: token },
-      );
     }),
   );
 
-  await inngest.send({
-    name: "message/sent",
-    data: {
-      messageId: assistantMessageId,
-      token,
-    },
+  return NextResponse.json({
+    success: true,
   });
-
-  return NextResponse.json({ message: "Event sent" });
 }

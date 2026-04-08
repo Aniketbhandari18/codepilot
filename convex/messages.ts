@@ -87,3 +87,102 @@ export const getAll = query({
     return messages;
   },
 });
+
+export const getById = query({
+  args: {
+    messageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const message = await ctx.db.get("messages", args.messageId);
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const conversation = await ctx.db.get(
+      "conversations",
+      message.conversationId,
+    );
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    const project = await ctx.db.get("projects", conversation.projectId);
+
+    if (!project || project.ownerId !== identity.subject) {
+      throw new Error("Project not found");
+    }
+
+    return message;
+  },
+});
+
+export const update = mutation({
+  args: {
+    messageId: v.id("messages"),
+    content: v.optional(v.string()),
+    status: v.optional(
+      v.union(
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("cancelled"),
+      ),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const message = await ctx.db.get("messages", args.messageId);
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const conversation = await ctx.db.get(
+      "conversations",
+      message.conversationId,
+    );
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    const project = await ctx.db.get("projects", conversation.projectId);
+
+    if (!project || project.ownerId !== identity.subject) {
+      throw new Error("Project not found");
+    }
+
+    await ctx.db.patch("messages", args.messageId, {
+      ...(args.content !== undefined && { content: args.content }),
+      ...(args.status !== undefined && { status: args.status }),
+    });
+  },
+});
+
+export const getProcessingMessages = query({
+  args: {
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const project = await ctx.db.get("projects", args.projectId);
+
+    if (!project || project.ownerId !== identity.subject) {
+      throw new Error("Project not found");
+    }
+
+    const processingMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_project_status", (q) =>
+        q.eq("projectId", args.projectId).eq("status", "processing"),
+      )
+      .collect();
+
+    return processingMessages;
+  },
+});

@@ -28,6 +28,7 @@
     "convex": "^1.32.0",
     "date-fns": "^4.1.0",
     "emmet-monaco-es": "^5.7.0",
+    "inngest": "^4.1.2",
     "lucide-react": "^0.575.0",
     "nanoid": "^5.1.7",
     "next": "16.1.6",
