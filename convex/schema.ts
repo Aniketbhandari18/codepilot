@@ -60,5 +60,7 @@ export default defineSchema({
       v.literal("cancelled"),
     ),
     updatedAt: v.number(),
-  }).index("by_conversation", ["conversationId"]),
+  })
+    .index("by_conversation", ["conversationId"])
+    .index("by_project_status", ["projectId", "status"]),
 });

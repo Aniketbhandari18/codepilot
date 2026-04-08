@@ -1,5 +1,3 @@
-import { useChat } from "@ai-sdk/react";
-
 import {
   Conversation,
   ConversationContent,
@@ -21,15 +19,15 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { useMutation, useQuery } from "convex/react";
 import { MessageSquare, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
-import { DefaultChatTransport, UIMessage } from "ai";
 import { Loader as AiLoader } from "@/components/ai-elements/loader";
 import Loader from "@/components/Loader";
 import { Button } from "@/components/ui/button";
 import ConversationTitle from "./ConversationTitle";
 import PastConversationsDialog from "./PastConversationsDialog";
+import axios from "axios";
 
 type Props = {
   projectId: Id<"projects">;
@@ -40,70 +38,62 @@ const ConversationSidebar = ({ projectId }: Props) => {
     useState<Id<"conversations"> | null>(null);
 
   const [input, setInput] = useState("");
+  const cancelInProgressRef = useRef<boolean>(false);
 
   const conversations = useQuery(api.conversations.getAll, {
     projectId: projectId,
   });
 
-  const dbMessages = useQuery(
+  const messages = useQuery(
     api.messages.getAll,
     activeConversationId ? { conversationId: activeConversationId } : "skip",
   );
-
-  const customizedDbMessages = dbMessages?.map((m) => ({
-    id: m._id,
-    role: m.role,
-    parts: [
-      {
-        type: "text",
-        text: m.content,
-      },
-    ],
-  })) as UIMessage[] | undefined;
 
   const activeConversation = conversations?.find(
     (c) => c._id === activeConversationId,
   );
 
-  const loadingMessages = dbMessages === undefined;
+  const isProcessing =
+    messages?.some((m) => m.status === "processing") ?? false;
+
+  const loadingMessages = messages === undefined;
 
   const createConversation = useMutation(api.conversations.create);
-  const createMessage = useMutation(api.messages.create);
 
-  const { messages, sendMessage, status, setMessages, stop } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/ai/messages",
-    }),
-    onFinish: async ({ message }) => {
-      if (!activeConversationId) return;
+  const createMessage = useMutation(api.messages.create).withOptimisticUpdate(
+    (localStore, args) => {
+      const tempId = crypto.randomUUID() as Id<"messages">;
 
-      const text = message.parts
-        .filter((p) => p.type === "text")
-        .map((p) => p.text)
-        .join("");
-
-      if (!text.trim()) return;
-
-      await createMessage({
-        conversationId: activeConversationId,
-        content: text,
-        role: "assistant",
-        status: "completed",
+      const existingMessages = localStore.getQuery(api.messages.getAll, {
+        conversationId: args.conversationId,
       });
+
+      if (!existingMessages) return;
+
+      const newMessage = {
+        _id: tempId,
+        _creationTime: Date.now(),
+        conversationId: args.conversationId,
+        projectId: projectId,
+        content: args.content,
+        role: args.role,
+        status: args.status,
+        updatedAt: Date.now(),
+      };
+
+      localStore.setQuery(
+        api.messages.getAll,
+        { conversationId: args.conversationId },
+        [...existingMessages, newMessage],
+      );
     },
-  });
+  );
 
   useEffect(() => {
     if (!activeConversationId && conversations?.length) {
       setActiveConversationId(conversations[0]._id);
     }
   }, [conversations]);
-
-  useEffect(() => {
-    if (customizedDbMessages) {
-      setMessages(customizedDbMessages);
-    }
-  }, [dbMessages, setMessages]);
 
   const handleCreateConversation = async () => {
     const id = await createConversation({
@@ -114,12 +104,26 @@ const ConversationSidebar = ({ projectId }: Props) => {
   };
 
   const handleSubmit = async (message: PromptInputMessage) => {
+    // handleCancel
+    if (isProcessing) {
+      if (cancelInProgressRef.current) return;
+
+      cancelInProgressRef.current = true;
+      await axios.post("/api/ai/messages/cancel", {
+        projectId: projectId,
+      });
+      cancelInProgressRef.current = false;
+
+      return;
+    }
+
     if (!activeConversationId) return;
 
     const trimmedMessage = message.text.trim();
     if (!trimmedMessage) return;
 
-    await createMessage({
+    // Create user message
+    createMessage({
       conversationId: activeConversationId,
       content: trimmedMessage,
       role: "user",
@@ -127,7 +131,18 @@ const ConversationSidebar = ({ projectId }: Props) => {
     });
 
     setInput("");
-    sendMessage({ text: message.text.trim() });
+
+    // Create assistant processing message (update later when message proceessing completes)
+    const assistantMsgId = await createMessage({
+      conversationId: activeConversationId,
+      content: "processing...",
+      role: "assistant",
+      status: "processing",
+    });
+
+    await axios.post("/api/ai/messages", {
+      assistantMessageId: assistantMsgId,
+    });
   };
 
   return (
@@ -174,30 +189,25 @@ const ConversationSidebar = ({ projectId }: Props) => {
                 />
               ) : (
                 messages.map((message) => (
-                  <Message from={message.role} key={message.id}>
+                  <Message from={message.role} key={message._id}>
                     <MessageContent
-                      className={`${message.role === "user" ? "bg-blue-500! text-white!" : "bg-white/20! text-zinc-100!"} py-2`}
+                      className={`${message.role === "user" ? "bg-white/20! text-zinc-100!" : ""} py-2`}
                     >
-                      {message.parts.map((part, i) => {
-                        switch (part.type) {
-                          case "text":
-                            return (
-                              <MessageResponse key={`${message.id}-${i}`}>
-                                {part.text}
-                              </MessageResponse>
-                            );
-                          default:
-                            return null;
-                        }
-                      })}
+                      {message.status === "processing" ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <AiLoader />
+                          <span>Thinking...</span>
+                        </div>
+                      ) : message.status === "cancelled" ? (
+                        <span className="text-muted-foreground italic">
+                          Request cancelled
+                        </span>
+                      ) : (
+                        <MessageResponse>{message.content}</MessageResponse>
+                      )}
                     </MessageContent>
                   </Message>
                 ))
-              )}
-              {status === "submitted" && (
-                <div>
-                  <AiLoader />
-                </div>
               )}
             </ConversationContent>
             <ConversationScrollButton />
@@ -215,17 +225,10 @@ const ConversationSidebar = ({ projectId }: Props) => {
 
           <PromptInputFooter className="justify-end px-1.5 pb-1.5">
             <PromptInputSubmit
-              status={status}
+              status={isProcessing ? "streaming" : undefined}
               disabled={
-                loadingMessages ||
-                status === "submitted" ||
-                (status === "ready" && !input.trim())
+                loadingMessages || (isProcessing ? false : !input.trim())
               }
-              onClick={() => {
-                if (status === "submitted" || status === "streaming") {
-                  stop();
-                }
-              }}
             />
           </PromptInputFooter>
         </PromptInput>
