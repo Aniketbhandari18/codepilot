@@ -8,6 +8,7 @@ import { Id } from "../../../../../convex/_generated/dataModel";
 
 const reqBodySchema = z.object({
   assistantMessageId: z.string(),
+  userMessage: z.string(),
 });
 
 export async function POST(req: NextRequest) {
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { assistantMessageId } = parsed.data;
+  const { assistantMessageId, userMessage } = parsed.data;
 
   const message = await fetchQuery(
     api.messages.getById,
@@ -94,7 +95,8 @@ export async function POST(req: NextRequest) {
   await inngest.send({
     name: "message/sent",
     data: {
-      messageId: assistantMessageId,
+      assistantMessageId: assistantMessageId,
+      userMessage,
       token,
     },
   });

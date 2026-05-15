@@ -130,6 +130,7 @@ const ConversationSidebar = ({ projectId }: Props) => {
       status: "completed",
     });
 
+    const userMessage = input;
     setInput("");
 
     // Create assistant processing message (update later when message proceessing completes)
@@ -142,6 +143,7 @@ const ConversationSidebar = ({ projectId }: Props) => {
 
     await axios.post("/api/ai/messages", {
       assistantMessageId: assistantMsgId,
+      userMessage: userMessage,
     });
   };
 
