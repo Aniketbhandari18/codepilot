@@ -3,6 +3,97 @@ import { mutation, query } from "./_generated/server";
 import { verifyAuth } from "./auth";
 import { Id } from "./_generated/dataModel";
 
+// Create multiple files at once in the same parent folder. Used for Agent bulk "CreateFiles" tool.
+export const createFiles = mutation({
+  args: {
+    projectId: v.id("projects"),
+    parentId: v.optional(v.id("files")),
+    files: v.array(
+      v.object({
+        fileName: v.string(),
+        content: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const project = await ctx.db.get("projects", args.projectId);
+
+    // Project validation
+    if (!project || project.ownerId !== identity.subject) {
+      throw new Error("Project not found");
+    }
+
+    // Parent validation (if provided)
+    if (args.parentId) {
+      const parent = await ctx.db.get("files", args.parentId);
+
+      if (!parent) {
+        throw new Error("Parent File not found");
+      }
+      if (parent.projectId !== args.projectId) {
+        throw new Error("Project not found");
+      }
+      if (parent.type !== "folder") {
+        throw new Error("Cannot create files inside a file");
+      }
+    }
+
+    const childFiles = await ctx.db
+      .query("files")
+      .withIndex("by_project_parent", (q) =>
+        q.eq("projectId", args.projectId).eq("parentId", args.parentId),
+      )
+      .collect();
+
+    const results: {
+      fileName: string;
+      fileId: string;
+      created: boolean;
+      error?: string;
+    }[] = [];
+
+    for (const file of args.files) {
+      const normalizedName = file.fileName.trim().toLowerCase();
+
+      // Check if file already exists
+      const existing = childFiles.find(
+        (c) => c.normalizedName === normalizedName && c.type === "file",
+      );
+
+      if (existing) {
+        results.push({
+          fileName: file.fileName,
+          fileId: existing._id,
+          created: false,
+          error: "File already exists",
+        });
+
+        continue;
+      }
+
+      const fileId = await ctx.db.insert("files", {
+        projectId: args.projectId,
+        parentId: args.parentId,
+        name: file.fileName,
+        normalizedName: normalizedName,
+        type: "file",
+        content: file.content,
+        updatedAt: Date.now(),
+      });
+
+      results.push({ fileName: file.fileName, fileId, created: true });
+    }
+
+    await ctx.db.patch("projects", args.projectId, {
+      updatedAt: Date.now(),
+    });
+
+    return results;
+  },
+});
+
 export const createFile = mutation({
   args: {
     projectId: v.id("projects"),

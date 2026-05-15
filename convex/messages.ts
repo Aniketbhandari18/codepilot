@@ -120,6 +120,38 @@ export const getById = query({
   },
 });
 
+export const getRecentMessages = query({
+  args: {
+    conversationId: v.id("conversations"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const conversation = await ctx.db.get("conversations", args.conversationId);
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    const project = await ctx.db.get("projects", conversation.projectId);
+
+    if (!project || project.ownerId !== identity.subject) {
+      throw new Error("Project not found");
+    }
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversationId", args.conversationId),
+      )
+      .order("desc")
+      .take(Math.min(args.limit ?? 10, 50));
+
+    return messages.reverse();
+  },
+});
+
 export const update = mutation({
   args: {
     messageId: v.id("messages"),
