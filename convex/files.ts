@@ -86,6 +86,10 @@ export const createFiles = mutation({
       results.push({ fileName: file.fileName, fileId, created: true });
     }
 
+    await ctx.db.patch("projects", args.projectId, {
+      updatedAt: Date.now(),
+    });
+
     return results;
   },
 });

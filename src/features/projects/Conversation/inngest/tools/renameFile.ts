@@ -42,7 +42,7 @@ export const renameFileTool = ({ token }: { token: string }) => {
 
           return `Renamed "${file.name}" to "${newName}" successfully`;
         } catch (error) {
-          return `Error deleting file: ${error instanceof Error ? error.message : "Unknown error"}.`;
+          return `Error renaming file: ${error instanceof Error ? error.message : "Unknown error"}.`;
         }
       });
     },

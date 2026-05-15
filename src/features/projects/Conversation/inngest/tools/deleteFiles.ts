@@ -21,26 +21,27 @@ export const deleteFilesTool = ({ token }: { token: string }) => {
         type: string;
       }[] = [];
 
-      for (const fileId of fileIds) {
-        const file = await fetchQuery(
-          api.files.getById,
-          {
-            fileId: fileId as Id<"files">,
-          },
-          { token: token },
-        );
+      try {
+        for (const fileId of fileIds) {
+          const file = await fetchQuery(
+            api.files.getById,
+            {
+              fileId: fileId as Id<"files">,
+            },
+            { token: token },
+          );
 
-        if (!file) {
-          return `Error: File with ID "${fileId}" not found. Use listFiles to get valid file IDs.`;
+          if (!file) {
+            return `Error: File with ID "${fileId}" not found. Use listFiles to get valid file IDs.`;
+          }
+
+          filesToDelete.push({
+            id: file._id,
+            name: file.name,
+            type: file.type,
+          });
         }
 
-        filesToDelete.push({
-          id: file._id,
-          name: file.name,
-          type: file.type,
-        });
-      }
-      try {
         return await step?.run("delete-files", async () => {
           const results: string[] = [];
 

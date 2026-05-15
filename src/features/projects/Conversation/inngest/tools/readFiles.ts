@@ -30,7 +30,7 @@ export const readFilesTool = ({ token }: { token: string }) => {
               { token: token },
             );
 
-            if (file.content) {
+            if (file.content !== undefined) {
               fileContents.push({
                 id: file._id,
                 name: file.name,
