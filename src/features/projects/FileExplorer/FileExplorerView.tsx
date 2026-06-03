@@ -9,8 +9,7 @@ import FileTree from "./FileTree";
 import { CreatingFile, RenamingFile } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import FileExplorerSkeleton from "./FileExplorerSkeleton";
-
-const ROOT_KEY = "__ROOT__";
+import { buildFileChildrenMap } from "../utils/buildFileChildrenMap";
 
 type Props = {
   projectId: Id<"projects">;
@@ -101,38 +100,7 @@ const FileExplorerView = ({ projectId, files, onOpenTab }: Props) => {
     },
   );
 
-  type ChildrenMap = Map<
-    Id<"files"> | typeof ROOT_KEY,
-    {
-      folders: Doc<"files">[];
-      files: Doc<"files">[];
-    }
-  >;
-
-  // Map parent to all its its children
-  const childrenMap: ChildrenMap = new Map();
-
-  // Populate childrenMap
-  if (files) {
-    for (const file of files) {
-      const parentId = file.parentId || ROOT_KEY;
-
-      if (!childrenMap.has(parentId)) {
-        childrenMap.set(parentId, {
-          folders: [],
-          files: [],
-        });
-      }
-
-      const children = childrenMap.get(parentId);
-
-      if (file.type === "folder") {
-        children!.folders.push(file);
-      } else {
-        children!.files.push(file);
-      }
-    }
-  }
+  const childrenMap = buildFileChildrenMap(files ?? []);
 
   // Sort folders and files by name for each parent
   for (const children of childrenMap.values()) {
