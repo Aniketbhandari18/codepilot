@@ -42,6 +42,7 @@ const FileExplorerView = ({ projectId, files, onOpenTab }: Props) => {
         type: args.type,
         content: args.type === "file" ? "" : undefined,
         updatedAt: Date.now(),
+        isOptimistic: true,
       };
 
       localStore.setQuery(api.files.getFiles, { projectId: args.projectId }, [

@@ -1,9 +1,10 @@
 import { WebContainer } from "@webcontainer/api";
 import { useEffect, useRef, useState } from "react";
-import { Id } from "../../../../convex/_generated/dataModel";
+import { Doc, Id } from "../../../../convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { buildFileTree } from "../Preview/utils/buildFileTree";
+import { getFilePath } from "../utils/getFilePath";
 
 type Props = {
   projectId: Id<"projects">;
@@ -15,6 +16,8 @@ export const useWebContainer = ({ projectId }: Props) => {
   const [webContainerInstance, setWebContainerInstance] =
     useState<WebContainer | null>(null);
   const hasInitializedRef = useRef<boolean>(false);
+
+  const previousFilesRef = useRef<Doc<"files">[] | null>(null);
 
   const [status, setStatus] = useState<
     "idle" | "booting" | "ready" | "installing" | "running" | "error"
@@ -81,6 +84,96 @@ export const useWebContainer = ({ projectId }: Props) => {
       })();
     };
   }, [projectId]);
+
+  // sync files
+  useEffect(() => {
+    if (!files) return;
+
+    const previousFiles = previousFilesRef.current;
+    const newFiles = files;
+
+    previousFilesRef.current = newFiles;
+
+    if (!previousFiles) return;
+
+    if (!project || !globalWebContainerInstance) return;
+
+    const wc = globalWebContainerInstance;
+
+    const previousFilesMap = new Map(previousFiles.map((f) => [f._id, f]));
+    const newFilesMap = new Map(newFiles.map((f) => [f._id, f]));
+
+    (async () => {
+      try {
+        for (const newFile of newFiles) {
+          // Skip optimistic files
+          if ((newFile as any).isOptimistic) {
+            continue;
+          }
+
+          const oldFile = previousFilesMap.get(newFile._id);
+
+          const filePath = getFilePath(newFilesMap, newFile);
+          if (!filePath) continue;
+
+          const newFilePath = `${project.name}/${filePath}`;
+
+          // NewFile doesn't exist in previousFiles
+          if (oldFile === undefined) {
+            // Create folder
+            if (newFile.type === "folder") {
+              await wc.fs.mkdir(newFilePath, { recursive: true });
+            }
+            // Create file
+            else await wc.fs.writeFile(newFilePath, newFile.content!);
+          }
+
+          // NewFile exists in previousFiles
+          else {
+            const filePath = getFilePath(previousFilesMap, oldFile);
+            if (!filePath) continue;
+
+            const oldFilePath = `${project.name}/${filePath}`;
+
+            if (oldFile.name !== newFile.name) {
+              await wc.fs.rename(oldFilePath, newFilePath);
+            }
+
+            // File content update
+            if (
+              oldFile.type === "file" &&
+              oldFile.content !== newFile.content
+            ) {
+              await wc.fs.writeFile(newFilePath, newFile.content!);
+            }
+          }
+        }
+
+        // Handle file delete
+        for (const oldFile of previousFiles) {
+          // Skip optimistic files
+          if ((oldFile as any).isOptimistic) {
+            continue;
+          }
+
+          const newFile = newFilesMap.get(oldFile._id);
+
+          const filePath = getFilePath(previousFilesMap, oldFile);
+
+          if (!filePath) continue;
+
+          const oldFilePath = `${project.name}/${filePath}`;
+
+          // Delete file if it doesn't exist in newFiles
+          if (!newFile) {
+            await wc.fs.rm(oldFilePath, { recursive: true, force: true });
+          }
+        }
+      } catch (error) {
+        console.log("error:", error);
+      }
+    })();
+  }, [files]);
 
   return {
     webContainerInstance,
