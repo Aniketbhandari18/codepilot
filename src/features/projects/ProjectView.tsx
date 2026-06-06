@@ -1,6 +1,6 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Id } from "../../../convex/_generated/dataModel";
-import { CodeXml, Eye } from "lucide-react";
+import { CodeXml, Eye, TerminalSquare } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Allotment } from "allotment";
@@ -10,8 +10,25 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { EditorTab } from "@/types";
 import CodeEditorContainer from "./CodeEditor/CodeEditorContainer";
+import TerminalView from "./Terminal/TerminalView";
+import Preview from "./Preview/Preview";
+import { useWebContainer } from "./hooks/useWebContainer";
 
 const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
+  const project = useQuery(api.projects.getById, {
+    projectId: projectId,
+  });
+  const files = useQuery(api.files.getFiles, {
+    projectId: projectId,
+  });
+
+  const [showTerminal, setShowTerminal] = useState(true);
+
+  const { webContainerInstance, status, previewUrl, setStatus, setError } =
+    useWebContainer({ projectId });
+
+  const [activeView, setActiveView] = useState<"code" | "preview">("code");
+
   // State for opened Tabs in code editors
   const [openedTabs, setOpenedTabs] = useState<EditorTab[]>([]);
   // State for active Tab in code editor
@@ -77,13 +94,13 @@ const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
     );
   };
 
-  const files = useQuery(api.files.getFiles, {
-    projectId: projectId,
-  });
-
   return (
     <div className="h-full">
-      <Tabs className="gap-0 h-full" defaultValue="code">
+      <Tabs
+        className="gap-0 h-full"
+        defaultValue="code"
+        onValueChange={(v) => setActiveView(v as any)}
+      >
         {/* Top Bar */}
         <div className="flex items-center justify-between px-1.5 py-1.5 border-b border-white/15">
           {/* Tabs */}
@@ -104,18 +121,34 @@ const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Export to GitHub */}
-          <Button
-            size={"sm"}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 border rounded-md"
-          >
-            <FaGithub className="h-4 w-4" />
-            Export
-          </Button>
+          {/* Terminal toggle (only in Code view) and Export to GitHub */}
+          <div className="flex items-center gap-2">
+            {activeView === "code" && (
+              <Button
+                variant={"secondary"}
+                size={"sm"}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white/80 border rounded-md"
+                onClick={() => setShowTerminal((prev) => !prev)}
+                aria-pressed={showTerminal}
+              >
+                <TerminalSquare className="size-4" />
+                {showTerminal ? "Hide Terminal" : "Show Terminal"}
+              </Button>
+            )}
+
+            <Button
+              variant={"secondary"}
+              size={"sm"}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white/80 border rounded-md"
+            >
+              <FaGithub className="h-4 w-4" />
+              Export
+            </Button>
+          </div>
         </div>
 
         {/* Tab Content */}
-        <TabsContent value="code">
+        <div className={activeView === "code" ? "h-full" : "hidden"}>
           <Allotment defaultSizes={[1, 3]}>
             <Allotment.Pane
               minSize={180}
@@ -129,21 +162,44 @@ const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
                 onOpenTab={openTab}
               />
             </Allotment.Pane>
-            <Allotment.Pane>
-              <CodeEditorContainer
-                files={files}
-                tabs={openedTabs}
-                activeTabId={activeTabId}
-                onSetActiveTab={setActiveTabId}
-                onPinTab={pinTab}
-                onCloseTab={closeTab}
-              />
+
+            <Allotment.Pane className="check">
+              <Allotment className="check1" vertical defaultSizes={[3, 1]}>
+                <Allotment.Pane>
+                  <CodeEditorContainer
+                    files={files}
+                    tabs={openedTabs}
+                    activeTabId={activeTabId}
+                    onSetActiveTab={setActiveTabId}
+                    onPinTab={pinTab}
+                    onCloseTab={closeTab}
+                  />
+                </Allotment.Pane>
+
+                <Allotment.Pane visible={showTerminal}>
+                  <div className="h-full flex flex-col bg-[#1b1f27] border-t">
+                    <div className="h-7 flex items-center bg-[#1a1d23] px-3 text-sm font-semibold gap-1.5 text-muted-foreground border-b border-border/50 shrink-0">
+                      <TerminalSquare className="size-4" />
+                      Terminal
+                    </div>
+                    {project && (
+                      <TerminalView
+                        files={files}
+                        webContainerInstance={webContainerInstance}
+                        setStatus={setStatus}
+                        setError={setError}
+                        cwd={project.name}
+                      />
+                    )}
+                  </div>
+                </Allotment.Pane>
+              </Allotment>
             </Allotment.Pane>
           </Allotment>
-        </TabsContent>
-        <TabsContent value="preview">
-          <p>Preview</p>
-        </TabsContent>
+        </div>
+        <div className={activeView === "preview" ? "h-full" : "hidden"}>
+          <Preview url={previewUrl} status={status} />
+        </div>
       </Tabs>
     </div>
   );
