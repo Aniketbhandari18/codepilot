@@ -106,10 +106,10 @@ const TerminalView = ({
                   if (parsedPackageJsonFile.scripts?.dev) {
                     input.write("npm run dev\n");
                   }
-
-                  setStatus("ready");
                 })();
               }
+
+              setStatus("ready");
 
               // wire user input only after prompt is ready
               terminal.onData((data) => {
