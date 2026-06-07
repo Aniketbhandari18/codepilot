@@ -5,7 +5,7 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { KeyboardEvent, useState } from "react";
+import { KeyboardEvent, useEffect, useState } from "react";
 
 const ProjectBreadcrumb = () => {
   const [isRenaming, setIsRenaming] = useState(false);
@@ -18,6 +18,11 @@ const ProjectBreadcrumb = () => {
     api.projects.getById,
     projectId ? { projectId } : "skip",
   );
+
+  useEffect(() => {
+    setIsRenaming(false);
+    setName("");
+  }, [projectId]);
 
   const renameProject = useMutation(api.projects.rename).withOptimisticUpdate(
     (localStore, args) => {

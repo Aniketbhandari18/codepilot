@@ -106,19 +106,24 @@ const CodeEditorView = ({ file }: Props) => {
             abortControllerRef.current?.abort();
             abortControllerRef.current = new AbortController();
 
-            const previousLines = model.getValueInRange({
-              startLineNumber: 1,
-              startColumn: 1,
-              endLineNumber: position.lineNumber - 1,
-              endColumn: model.getLineMaxColumn(position.lineNumber - 1),
-            });
-
-            const nextLines = model.getValueInRange({
-              startLineNumber: position.lineNumber + 1,
-              startColumn: 1,
-              endLineNumber: model.getLineCount(),
-              endColumn: model.getLineMaxColumn(model.getLineCount()),
-            });
+            let previousLines = "";
+            if (position.lineNumber > 1) {
+              previousLines = model.getValueInRange({
+                startLineNumber: 1,
+                startColumn: 1,
+                endLineNumber: position.lineNumber - 1,
+                endColumn: model.getLineMaxColumn(position.lineNumber - 1),
+              });
+            }
+            let nextLines = "";
+            if (position.lineNumber < model.getLineCount()) {
+              nextLines = model.getValueInRange({
+                startLineNumber: position.lineNumber + 1,
+                startColumn: 1,
+                endLineNumber: model.getLineCount(),
+                endColumn: model.getLineMaxColumn(model.getLineCount()),
+              });
+            }
 
             const textBeforeCursor = model.getValueInRange({
               startLineNumber: position.lineNumber,
