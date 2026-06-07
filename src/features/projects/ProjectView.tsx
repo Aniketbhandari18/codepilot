@@ -5,7 +5,7 @@ import { FaGithub } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Allotment } from "allotment";
 import FileExplorerView from "./FileExplorer/FileExplorerView";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { EditorTab } from "@/types";
@@ -94,10 +94,35 @@ const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
     );
   };
 
+  // Toggle terminal with Ctrl+` (or Cmd+` on macOS).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      console.log("e:", e.key);
+      if ((e.ctrlKey || e.metaKey) && e.code === "Backquote") {
+        e.preventDefault();
+
+        if (activeView !== "code") {
+          setActiveView("code");
+
+          setShowTerminal(true);
+        } else {
+          setShowTerminal((prev) => !prev);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeView]);
+
   return (
     <div className="h-full">
       <Tabs
         className="gap-0 h-full"
+        value={activeView}
         defaultValue="code"
         onValueChange={(v) => setActiveView(v as any)}
       >
