@@ -1,0 +1,115 @@
+give bg color for FileTreeItem for opened File
+
+truncate in FileTree doesn't work after adding ScrollArea in FileExplorerView.tsx
+set text-[15px] for file/folder name div in fileTree.tsx
+there is formatting issue in FileInput.tsx as well due to ScrollArea
+FileInput is not taking full width with or without ScrollArea
+
+
+build a file map(key: fileId, value: file) to fetch file in CodeEditorTabs
+
+so i added a CodeEditorContainer and CodeEditorTabs component, projectContainer renders CodeEditorTabs component. also added openTab, closeTab, pinTab functionalities using openedTabs and activeTabId states. also passed onOpenTab function to FileExplorerView(and even to further neststed components) so that they use openTab functionality. passed openedTabs and activeTabId state and setActiveId, pinTab and onCloseTab functions to CodeEditorContainer, which are further passed down to CodeEditorTabs component
+
+
+activeTabId could be null in CodeEditorView (already handled it, i guess)
+
+on creating a new file, put it into activeFileId
+
+import error in ProjectContainer.tsx
+import error in layout.tsx
+
+CodeEditor -
+  clicking anything outside MonacoEditor loses cursor placement/position
+  Flush pending save before switching tabs(already handled it, i guess)
+
+  (a complex one) when i write something that is from suggestion, it should not make another request for suggestion
+
+  suggests repeated code
+
+  abortController in inline suggetion api call
+
+  if the next charachter after the cursor is not empty space, don't call the suggestion api(its a bad idea, i think i shoudln't do it, eg - console.log(""), assume i am inside the quotes)
+
+  inline completion is not working properly
+
+Conversation - 
+  choose a different format to return files in listFiles tool
+
+night-owl
+oceanic-next
+
+
+
+
+
+Sync:
+  getFilePath (pending)
+  file update (very easy)
+  file create (very easy) 
+  file rename (very easy)
+  file delete (very easy)
+
+
+page.tsx - 
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import Link from "next/link";
+import { Id } from "../../convex/_generated/dataModel";
+import axios from "axios";
+
+const Page = () => {
+  const projects = useQuery(api.projects.getProjects, {});
+  const createProject = useMutation(api.projects.createProject);
+
+  const createConversation = useMutation(api.conversations.create);
+  const createMessage = useMutation(api.messages.create);
+
+  return (
+    <div>
+      <Button onClick={() => createProject({ name: "project" })}>
+        New Project
+      </Button>
+      <Button
+        onClick={() =>
+          createConversation({
+            projectId: "jd725n2ez565fgcm5txfjzerpn820w8g" as Id<"projects">,
+          })
+        }
+      >
+        Create convo
+      </Button>
+
+      {/* <Button
+        onClick={() =>
+          createMessage({
+            conversationId:
+              "js7cdzmvnt737yc6qv690t750h83m9qv" as Id<"conversations">,
+            content: "Sure bro...",
+            role: "assistant",
+            status: "completed",
+          })
+        }
+      >
+        Create Message
+      </Button> */}
+
+      <Button
+        onClick={async () => {
+          await axios.post("/api/ai/messages");
+        }}
+      >
+        Convex error test
+      </Button>
+
+      {projects?.map((project) => (
+        <div key={project._id}>
+          <Link href={`/projects/${project._id}`}>{project.name}</Link>
+        </div>
+      ))}
+    </div>
+  );
+};
+export default Page;

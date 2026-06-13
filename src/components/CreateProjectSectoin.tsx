@@ -2,6 +2,10 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { Sparkles, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+// type FrameWork = "html" | "nextjs" | "react" | "nodejs";
 
 const FRAMEWORKS = [
   {
@@ -28,11 +32,15 @@ const FRAMEWORKS = [
     desc: "Server-side JavaScript runtime",
     logo: "/Node.js.png",
   },
-];
+] as const;
+
+type FrameWork = (typeof FRAMEWORKS)[number]["id"]
 
 const CreateProjectSection = () => {
   const [name, setName] = useState("");
-  const [framework, setFramework] = useState("html");
+  const [framework, setFramework] = useState<FrameWork>("html");
+
+  const createProject = useMutation(api.projects.createProject);
 
   return (
     <section className="relative py-16 md:py-24 pb-12!">
@@ -105,7 +113,7 @@ const CreateProjectSection = () => {
             })}
           </div>
 
-          <Button disabled={!name.trim()} size="lg" className="w-full">
+          <Button onClick={() => createProject({ name: name, template: framework })} disabled={!name.trim()} size="lg" className="w-full">
             <Sparkles size={16} />
             Create Project
           </Button>

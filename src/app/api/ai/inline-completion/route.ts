@@ -141,6 +141,7 @@ Based on the context above, return the completion text to insert at the cursor.
 };
 
 export async function POST(req: NextRequest) {
+  if (2 === 2) return NextResponse.json({message: "early return"})
   try {
     const { userId } = await auth();
 

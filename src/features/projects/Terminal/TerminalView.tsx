@@ -106,6 +106,9 @@ const TerminalView = ({
                   if (parsedPackageJsonFile.scripts?.dev) {
                     input.write("npm run dev\n");
                   }
+                  else if (parsedPackageJsonFile.scripts?.start){
+                    input.write("npm start\n");
+                  }
                 })();
               }
 
