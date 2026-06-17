@@ -13,6 +13,21 @@ type Props = {
 
 let globalWebContainerInstance: WebContainer | null = null;
 
+const IGNORED_PATHS = [
+  "node_modules",
+  ".next",
+  ".git",
+  "dist",
+  "build",
+  ".turbo",
+];
+
+const shouldIgnorePath = (path: string) => {
+  return IGNORED_PATHS.some(
+    (ignoredPath) => path == ignoredPath || path.startsWith(`${ignoredPath}/`),
+  );
+};
+
 export const useWebContainer = ({ projectId }: Props) => {
   const [webContainerInstance, setWebContainerInstance] =
     useState<WebContainer | null>(null);
@@ -146,6 +161,8 @@ export const useWebContainer = ({ projectId }: Props) => {
               : filenameStr;
 
             if (!relativePath) return;
+
+            if (shouldIgnorePath(relativePath)) return;
 
             const currentFiles = filesRef.current;
 
