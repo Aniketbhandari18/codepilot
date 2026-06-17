@@ -7,15 +7,17 @@ import Sidebar from "./Sidebar";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { PanelLeft } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
 
 const HomePage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { isSignedIn } = useAuth();
 
-  const projects = useQuery(api.projects.getProjects, {});
+  const projects = useQuery(api.projects.getProjects, isSignedIn ? {} : "skip");
 
   return (
     <div className="relative">
-      {!sidebarOpen && (
+      {isSignedIn && !sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
           className="fixed z-20 ml-3 mt-3 text-muted-foreground hover:text-foreground transition-colors"
@@ -24,11 +26,13 @@ const HomePage = () => {
           <PanelLeft size={18} />
         </button>
       )}
-      <Sidebar
-        projects={projects ?? []}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      {isSignedIn && (
+        <Sidebar
+          projects={projects ?? []}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+      )}
       <HeroSection />
       <CreateProjectSection />
     </div>
