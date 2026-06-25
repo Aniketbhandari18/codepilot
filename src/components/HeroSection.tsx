@@ -1,8 +1,36 @@
-import { ArrowRight } from "lucide-react";
+import axios from "axios";
+import { useMutation } from "convex/react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
+import { useState, useTransition } from "react";
 import { FaGithub } from "react-icons/fa";
+import { api } from "../../convex/_generated/api";
+import { useRouter } from "next/navigation";
 
 const HeroSection = () => {
+  const [prompt, setPrompt] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const router = useRouter();
+
+  const createProject = useMutation(api.projects.createProject);
+
+  const handleCreateProject = async () => {
+    startTransition(async () => {
+      const { projectId, assistantMsgId } = await createProject({
+        name: "project",
+        prompt: prompt.trim(),
+      });
+
+      axios.post("/api/ai/messages", {
+        assistantMessageId: assistantMsgId,
+        userMessage: prompt.trim(),
+      });
+
+      router.push(`/projects/${projectId}`);
+    });
+  };
+
   return (
     <section className="relative pt-32 pb-12 md:pt-44 md:pb-20 overflow-hidden">
       {/* Background glow */}
@@ -39,11 +67,21 @@ const HeroSection = () => {
             <div className="flex items-center gap-3 bg-secondary/60 rounded-xl px-4 py-3">
               <input
                 type="text"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Build a fully functional todo app..."
                 className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground text-sm md:text-base"
               />
-              <button className="shrink-0 w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground hover:opacity-90 transition-opacity">
-                <ArrowRight size={16} />
+              <button
+                disabled={isPending || !prompt.trim()}
+                onClick={handleCreateProject}
+                className="shrink-0 w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                {!isPending ? (
+                  <ArrowRight size={16} />
+                ) : (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
               </button>
             </div>
           </div>

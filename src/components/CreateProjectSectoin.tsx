@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { motion } from "motion/react";
-import { Sparkles, Code2 } from "lucide-react";
+import { Sparkles, Code2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useRouter } from "next/navigation";
 
 const FRAMEWORKS = [
   {
@@ -28,11 +31,29 @@ const FRAMEWORKS = [
     desc: "Server-side JavaScript runtime",
     logo: "/Node.js.png",
   },
-];
+] as const;
+
+type FrameWork = (typeof FRAMEWORKS)[number]["id"];
 
 const CreateProjectSection = () => {
   const [name, setName] = useState("");
-  const [framework, setFramework] = useState("html");
+  const [framework, setFramework] = useState<FrameWork>("html");
+  const [isPending, startTransition] = useTransition();
+
+  const router = useRouter();
+
+  const createProject = useMutation(api.projects.createProject);
+
+  const handleCreateProject = () => {
+    startTransition(async () => {
+      const { projectId } = await createProject({
+        name: name,
+        template: framework,
+      });
+
+      router.push(`/projects/${projectId}`);
+    });
+  };
 
   return (
     <section className="relative py-16 md:py-24 pb-12!">
@@ -105,9 +126,23 @@ const CreateProjectSection = () => {
             })}
           </div>
 
-          <Button disabled={!name.trim()} size="lg" className="w-full">
-            <Sparkles size={16} />
-            Create Project
+          <Button
+            onClick={handleCreateProject}
+            disabled={isPending || !name.trim()}
+            size="lg"
+            className="w-full"
+          >
+            {!isPending ? (
+              <>
+                <Sparkles size={16} />
+                Create Project
+              </>
+            ) : (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            )}
           </Button>
         </motion.div>
       </div>
