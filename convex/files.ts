@@ -2,6 +2,11 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { verifyAuth } from "./auth";
 import { Id } from "./_generated/dataModel";
+import { Files } from "@/types";
+import { htmlFiles } from "@/templates/html/files";
+import { reactFiles } from "@/templates/react/files";
+import { nextjsFiles } from "@/templates/nextjs/files";
+import { nodejsFiles } from "@/templates/nodejs/files";
 
 // Create multiple files at once in the same parent folder. Used for Agent bulk "CreateFiles" tool.
 export const createFiles = mutation({
@@ -166,6 +171,62 @@ export const createFile = mutation({
     });
 
     return fileId;
+  },
+});
+
+export const createTemplateFiles = mutation({
+  args: {
+    projectId: v.id("projects"),
+    template: v.union(
+      v.literal("html"),
+      v.literal("nextjs"),
+      v.literal("react"),
+      v.literal("nodejs"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+
+    const now = Date.now();
+
+    const project = await ctx.db.get("projects", args.projectId);
+
+    // Project validation
+    if (!project || project.ownerId !== identity.subject) {
+      throw new Error("Project not found");
+    }
+
+    const createFilesRecursively = async (
+      files: Files,
+      parentId: Id<"files"> | undefined,
+    ) => {
+      for (const file of files) {
+        const newFileId = await ctx.db.insert("files", {
+          projectId: args.projectId,
+          parentId: parentId,
+          name: file.name,
+          normalizedName: file.name.trim().toLowerCase(),
+          type: file.type,
+          content: file.type === "file" ? file.content : undefined,
+          updatedAt: now,
+        });
+
+        if (file.type === "folder") {
+          await createFilesRecursively(file.children, newFileId);
+        }
+      }
+    };
+
+    const TEMPLATE_FILES_MAP = {
+      html: htmlFiles,
+      react: reactFiles,
+      nextjs: nextjsFiles,
+      nodejs: nodejsFiles,
+    };
+
+    const templateFiles = TEMPLATE_FILES_MAP[args.template];
+
+    await createFilesRecursively(templateFiles, undefined);
   },
 });
 

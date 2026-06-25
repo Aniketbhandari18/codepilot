@@ -1,10 +1,13 @@
 import { inngest } from "@/inngest/client";
 import { auth } from "@clerk/nextjs/server";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { api } from "../../../../../convex/_generated/api";
 import z from "zod";
 import { Id } from "../../../../../convex/_generated/dataModel";
+import { generateText, Output } from "ai";
+import { google } from "@ai-sdk/google";
+import { TEMPLATE_SYSTEM_PROMPT } from "@/constants";
 
 const reqBodySchema = z.object({
   assistantMessageId: z.string(),
@@ -58,39 +61,102 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Remove all processingMessages first
-  // Ideally processingMessages should be of length 1 (excluding current assistant message)
-  const processingMessages = await fetchQuery(
-    api.messages.getProcessingMessages,
+  const projectId = message.projectId;
+  const project = await fetchQuery(
+    api.projects.getById,
     {
-      projectId: message.projectId,
+      projectId: projectId,
     },
     { token: token },
   );
 
-  // Cancel all processingMessages except current assistant message (ideally 1)
-  await Promise.all(
-    processingMessages.map(async (msg) => {
-      if (msg._id === assistantMessageId) return;
+  if (!project || project.ownerId !== userId) {
+    return NextResponse.json(
+      { error: "Project doesn't exist" },
+      { status: 400 },
+    );
+  }
 
-      await inngest.send({
-        name: "message/cancel",
-        data: {
-          messageId: msg._id,
-          token: token,
-        },
-      });
+  // Remove all processingMessages first
+  if (project.initialized) {
+    // Ideally processingMessages should be of length 1 (excluding current assistant message)
+    const processingMessages = await fetchQuery(
+      api.messages.getProcessingMessages,
+      {
+        projectId: message.projectId,
+      },
+      { token: token },
+    );
 
+    // Cancel all processingMessages except current assistant message (ideally 1)
+    await Promise.all(
+      processingMessages.map(async (msg) => {
+        if (msg._id === assistantMessageId) return;
+
+        await inngest.send({
+          name: "message/cancel",
+          data: {
+            messageId: msg._id,
+            token: token,
+          },
+        });
+
+        await fetchMutation(
+          api.messages.update,
+          {
+            messageId: msg._id,
+            status: "cancelled",
+          },
+          { token: token },
+        );
+      }),
+    );
+  }
+
+  // generate template and create template files
+  if (!project.initialized) {
+    after(async () => {
+      let template: "react" | "nextjs" | "nodejs" | "none";
+
+      try {
+        const { output } = await generateText({
+          model: google("gemini-2.5-flash-lite"),
+          output: Output.object({
+            schema: z.object({
+              template: z.enum(["react", "nextjs", "nodejs", "none"]),
+            }),
+          }),
+          system: TEMPLATE_SYSTEM_PROMPT,
+          prompt: userMessage,
+        });
+
+        template = output.template;
+      } catch (error) {
+        template = "none";
+      }
+
+      if (template !== "none") {
+        // Create template files in the project
+        await fetchMutation(
+          api.files.createTemplateFiles,
+          {
+            projectId: projectId,
+            template: template,
+          },
+          { token: token },
+        );
+      }
+
+      // Mark the project as initialized
       await fetchMutation(
-        api.messages.update,
+        api.projects.markInitialized,
         {
-          messageId: msg._id,
-          status: "cancelled",
+          projectId: projectId,
         },
         { token: token },
       );
-    }),
-  );
+    });
+  }
 
   await inngest.send({
     name: "message/sent",
