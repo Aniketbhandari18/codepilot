@@ -192,12 +192,14 @@ const ProjectView = ({ projectId }: { projectId: Id<"projects"> }) => {
               <Allotment className="check1" vertical defaultSizes={[3, 1]}>
                 <Allotment.Pane>
                   <CodeEditorContainer
+                    projectName={project?.name}
                     files={files}
                     tabs={openedTabs}
                     activeTabId={activeTabId}
                     onSetActiveTab={setActiveTabId}
                     onPinTab={pinTab}
                     onCloseTab={closeTab}
+                    webcontainerInstance={webContainerInstance}
                   />
                 </Allotment.Pane>
 
